@@ -261,7 +261,12 @@
 
   <div class="success-text">
     <div class="success-title">Booking Registered Successfully!</div>
-    <div class="success-desc">Please show this QR code to the cashier at the counter to process your pre-booking order.</div>
+    <div class="success-desc">Show this QR code to the cashier OR provide the text code below.</div>
+  </div>
+
+  <div style="width:100%;max-width:380px;background:rgba(255,255,255,0.05);border:1px dashed var(--gold);padding:10px 14px;border-radius:12px;text-align:center;margin-bottom:16px;">
+    <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Booking Code</div>
+    <div id="bookingCodeText" style="font-family:monospace;font-size:12px;color:var(--gold);word-break:break-all;user-select:all;"></div>
   </div>
 
   <button class="edit-btn" onclick="closeModal()">Edit Order</button>
@@ -647,9 +652,26 @@ function generateOrder() {
     rcptEl.appendChild(row);
   });
   document.getElementById('rcptTotal').textContent = 'Rs ' + grand.toFixed(2);
+  document.getElementById('bookingCodeText').textContent = payload;
 
   // Show modal
   document.getElementById('modal').classList.add('open');
+
+  // Automatically submit order to desktop app in background (No scanning needed!)
+  try {
+    fetch('https://ntfy.sh/pipodara_prebook_store', {
+      method: 'POST',
+      body: payload
+    }).catch(function(){});
+  } catch(e) {}
+
+  try {
+    fetch('/api/submit-booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: payload
+    }).catch(function(){});
+  } catch(e) {}
 
   // Draw QR
   try {
