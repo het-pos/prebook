@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pre-Booking Order</title>
+  <style>
+    :root {
+      --bg: #0D0E11;
+      --card: #181A22;
+      --border: rgba(255,255,255,0.07);
+      --gold: #E2B25B;
+      --gold2: #B88E3E;
+      --text: #F1F3F9;
+      --muted: #8891A5;
+      --green: #4ade80;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 16px 12px 40px;
+    }
+    .page { width: 100%; max-width: 460px; }
+
+    .header { text-align: center; padding: 20px 0 24px; }
+    .header h1 { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: var(--gold); }
+    .header p { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 10px; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.6px; }
+    .field input {
+      width: 100%;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--gold); }
+
+    /* Item list */
+    .item-list { display: flex; flex-direction: column; gap: 2px; }
+    .item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-info { flex: 1; }
+    .item-name { font-size: 13px; font-weight: 600; }
+    .item-price { font-size: 11px; color: var(--gold); margin-top: 2px; }
+    .qty-wrap {
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .qty-btn {
+      width: 34px; height: 34px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none;
+    }
+    .qty-btn:active { background: rgba(255,255,255,0.1); }
+    .qty-num { width: 32px; text-align: center; font-size: 13px; font-weight: 700; }
+
+    .add-custom {
+      width: 100%;
+      background: transparent;
+      border: 1.5px dashed var(--gold2);
+      border-radius: 10px;
+      padding: 11px;
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: background 0.15s;
+    }
+    .add-custom:active { background: rgba(226,178,91,0.1); }
+
+    /* Summary */
+    .summary { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+    .summary-label { font-size: 12px; color: var(--muted); }
+    .summary-val { font-size: 14px; font-weight: 700; }
+
+    /* Submit btn */
+    .submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--gold), var(--gold2));
+      border: none;
+      border-radius: 14px;
+      padding: 15px;
+      color: #0D0E11;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .submit-btn:active { transform: scale(0.97); opacity: 0.9; }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; }
+
+    /* ---- QR / Receipt Modal ---- */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,11,15,0.97);
+      z-index: 200;
+      overflow-y: auto;
+      padding: 20px 12px 40px;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; flex-direction: column; align-items: center; }
+
+    .receipt-card {
+      width: 100%;
+      max-width: 380px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .receipt-title { text-align: center; font-size: 13px; font-weight: 800; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; }
+    .receipt-meta { text-align: center; font-size: 11px; color: var(--muted); margin: 4px 0 14px; }
+    .receipt-divider { border: none; border-top: 1px dashed rgba(255,255,255,0.1); margin: 12px 0; }
+    .receipt-item-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 7px; color: var(--text); }
+    .receipt-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 800; color: var(--green); margin-top: 6px; }
+
+    .qr-wrapper {
+      background: white;
+      padding: 14px;
+      border-radius: 18px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 30px rgba(255,255,255,0.08);
+    }
+    #qr-canvas { display: block; }
+
+    .success-text { text-align: center; max-width: 300px; margin-bottom: 20px; }
+    .success-title { font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+    .success-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+    .edit-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 11px 28px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <h1>PRE-BOOKING</h1>
+    <p>Select items &amp; place your offline order</p>
+  </div>
+
+  <!-- Customer Details -->
+  <div class="card">
+    <div class="section-label">Your Details</div>
+    <div class="field">
+      <label>Full Name</label>
+      <input type="text" id="custName" placeholder="Enter your name" autocomplete="name">
+    </div>
+    <div class="field">
+      <label>Mobile Number</label>
+      <input type="tel" id="custPhone" placeholder="10-digit number" maxlength="10" inputmode="numeric">
+    </div>
+  </div>
+
+  <!-- Items -->
+  <div class="card">
+    <div class="section-label">Select Items</div>
+    <div class="item-list" id="itemList">
+      <div class="empty">Loading catalog…</div>
+    </div>
+    <button class="add-custom" onclick="addCustomItem()">+ Add Custom Item (No Stock Impact)</button>
+  </div>
+
+  <!-- Summary -->
+  <div class="card">
+    <div class="section-label">Order Summary</div>
+    <div class="summary">
+      <span class="summary-label">Items in order</span>
+      <span class="summary-val" id="sumQty">0</span>
+    </div>
+    <div class="summary">
+      <span class="summary-label">Estimated Total</span>
+      <span class="summary-val" style="color:var(--green)" id="sumTotal">Rs 0.00</span>
+    </div>
+  </div>
+
+  <button class="submit-btn" onclick="generateOrder()">GENERATE ORDER QR CODE</button>
+
+</div>
+
+<!-- Receipt + QR Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="receipt-card">
+    <div class="receipt-title">Order Receipt Summary</div>
+    <div class="receipt-meta" id="rcptMeta">Name: — | Phone: —</div>
+    <hr class="receipt-divider">
+    <div id="rcptItems"></div>
+    <hr class="receipt-divider">
+    <div class="receipt-total">
+      <span>Estimated Total</span>
+      <span id="rcptTotal">Rs 0.00</span>
+    </div>
+  </div>
+
+  <div class="qr-wrapper">
+    <canvas id="qr-canvas" width="240" height="240"></canvas>
+  </div>
+
+  <div class="success-text">
+    <div class="success-title">Booking Registered Successfully!</div>
+    <div class="success-desc">Please show this QR code to the cashier at the counter to process your pre-booking order.</div>
+  </div>
+
+  <button class="edit-btn" onclick="closeModal()">Edit Order</button>
+</div>
+
+<script>
+/* ============================================================
+   Minimal QR Code generator (MIT licence, no external deps)
+   Based on davidshimjs/qrcodejs core algorithm
+   ============================================================ */
+var QRGen = (function () {
+  /* ----- RS math tables ----- */
+  var EXP = new Array(256), LOG = new Array(256);
+  (function() {
+    for (var i = 0; i < 8; i++) EXP[i] = 1 << i;
+    for (var i = 8; i < 256; i++) EXP[i] = EXP[i-4]^EXP[i-5]^EXP[i-6]^EXP[i-8];
+    for (var i = 0; i < 255; i++) LOG[EXP[i]] = i;
+  })();
+  function gexp(n) { while (n < 0) n += 255; while (n >= 255) n -= 255; return EXP[n]; }
+  function glog(n) { if (n < 1) throw 'glog(' + n + ')'; return LOG[n]; }
+
+  /* ----- Polynomial ----- */
+  function Poly(num, shift) {
+    var s = 0; while (s < num.length && num[s] == 0) s++;
+    this.num = new Array(num.length - s + shift);
+    for (var i = 0; i < num.length - s; i++) this.num[i] = num[i + s];
+  }
+  Poly.prototype.get = function(i){ return this.num[i]; };
+  Poly.prototype.len = function(){ return this.num.length; };
+  Poly.prototype.mul = function(e){
+    var n = new Array(this.len() + e.len() - 1);
+    for (var i = 0; i < n.length; i++) n[i] = 0;
+    for (var i = 0; i < this.len(); i++)
+      for (var j = 0; j < e.len(); j++)
+        n[i+j] ^= gexp(glog(this.get(i)) + glog(e.get(j)));
+    return new Poly(n, 0);
+  };
+  Poly.prototype.mod = function(e){
+    if (this.len() - e.len() < 0) return this;
+    var r = glog(this.get(0)) - glog(e.get(0));
+    var n = new Array(this.len());
+    for (var i = 0; i < this.len(); i++) n[i] = this.get(i);
+    for (var i = 0; i < e.len(); i++) n[i] ^= gexp(glog(e.get(i)) + r);
+    return new Poly(n, 0).mod(e);
+  };
+
+  /* ----- RS block table (L level only) ----- */
+  var RST = [[1,26,19],[1,44,34],[1,70,55],[1,100,80],[1,134,108],[2,86,68],[2,98,78],[2,121,97],[2,146,117],[2,86,68,2,87,69],[4,101,81],[4,122,97],[4,122,97,1,123,98],[4,122,97,2,123,98],[4,122,97,4,123,98],[4,122,97,6,123,98],[6,122,97,2,123,98],[6,122,97,4,123,98],[7,122,97,4,123,98],[4,122,97,8,123,98],[4,122,97,10,123,98],[6,122,97,10,123,98],[6,122,97,12,123,98],[6,122,97,14,123,98],[12,122,97,4,123,98],[5,122,97,14,123,98],[11,122,97,10,123,98],[11,122,97,12,123,98],[19,122,97,4,123,98],[16,122,97,10,123,98],[18,122,97,10,123,98],[22,122,97,8,123,98],[19,122,97,14,123,98],[22,122,97,14,123,98],[29,122,97,4,123,98],[13,122,97,26,123,98],[17,122,97,24,123,98],[20,122,97,25,123,98],[23,122,97,25,123,98],[35,122,97,5,123,98]];
+  function rsBlocks(type){
+    var t=RST[type-1], r=[], d=t.length/3;
+    for(var i=0;i<d;i++) for(var j=0;j<t[i*3];j++) r.push({total:t[i*3+1],data:t[i*3+2]});
+    return r;
+  }
+  function errPoly(cnt){
+    var p=new Poly([1],0);
+    for(var i=0;i<cnt;i++) p=p.mul(new Poly([1,gexp(i)],0));
+    return p;
+  }
+
+  /* ----- Bit buffer ----- */
+  function Buf(){ this.buf=[]; this.len=0; }
+  Buf.prototype.put=function(n,l){ for(var i=0;i<l;i++) this.putBit(!!(n>>>(l-i-1)&1)); };
+  Buf.prototype.putBit=function(b){ var p=Math.floor(this.len/8); if(this.buf.length<=p) this.buf.push(0); if(b) this.buf[p]|=128>>>(this.len%8); this.len++; };
+  Buf.prototype.bits=function(){ return this.len; };
+
+  /* ----- Pattern positions ----- */
+  var PP=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]];
+
+  /* ----- BCH helpers ----- */
+  function bchDig(d){ var r=0; while(d!==0){r++;d>>>=1;} return r; }
+  function bchType(d){ for(var b=d<<10;bchDig(b)-bchDig(1335)>=0;) b^=1335<<(bchDig(b)-bchDig(1335)); return(d<<10|b)^21522; }
+
+  /* ----- Mask ----- */
+  function mask(pat,r,c){
+    switch(pat){
+      case 0: return (r+c)%2===0;
+      case 1: return r%2===0;
+      case 2: return c%3===0;
+      case 3: return (r+c)%3===0;
+      case 4: return (Math.floor(r/2)+Math.floor(c/3))%2===0;
+      case 5: return r*c%2+r*c%3===0;
+      case 6: return (r*c%2+r*c%3)%2===0;
+      case 7: return (r*c%3+(r+c)%2)%2===0;
+    }
+    return false;
+  }
+
+  /* ----- Length bits for 8-bit mode ----- */
+  function lenBits(type){ return type<10?8:16; }
+
+  /* ----- QR matrix builder ----- */
+  function QR(data, typeNum) {
+    var MC = 4*typeNum+17;
+    var mod = [];
+    for(var i=0;i<MC;i++){ mod[i]=[]; for(var j=0;j<MC;j++) mod[i][j]=null; }
+
+    function setFinder(r,c){
+      for(var dr=-1;dr<=7;dr++) for(var dc=-1;dc<=7;dc++){
+        if(r+dr<0||r+dr>=MC||c+dc<0||c+dc>=MC) continue;
+        mod[r+dr][c+dc]=(dr>=0&&dr<=6&&(dc===0||dc===6))||(dc>=0&&dc<=6&&(dr===0||dr===6))||(dr>=2&&dr<=4&&dc>=2&&dc<=4);
+      }
+    }
+    setFinder(0,0); setFinder(MC-7,0); setFinder(0,MC-7);
+
+    // timing
+    for(var i=8;i<MC-8;i++){ if(mod[i][6]===null) mod[i][6]=i%2===0; if(mod[6][i]===null) mod[6][i]=i%2===0; }
+
+    // alignment
+    var ap=PP[typeNum-1];
+    for(var a=0;a<ap.length;a++) for(var b=0;b<ap.length;b++){
+      var r=ap[a],c=ap[b];
+      if(mod[r][c]!==null) continue;
+      for(var dr=-2;dr<=2;dr++) for(var dc=-2;dc<=2;dc++)
+        mod[r+dr][c+dc]=(dr===-2||dr===2||dc===-2||dc===2||dr===0&&dc===0);
+    }
+
+    // format info placeholder
+    function setFmt(mp){
+      var bits=bchType(mp);
+      for(var i=0;i<6;i++) mod[i][8]=!!(bits>>i&1);
+      for(var i=0;i<8;i++) mod[8][i]=(i===6)?null:(!!(bits>>i&1));
+      mod[7][8]=!!(bits>>7&1);
+      mod[8][8]=!!(bits>>8&1);
+      for(var i=0;i<7;i++) mod[MC-7+i][8]=!!(bits>>(i+9)&1);
+      for(var i=0;i<8;i++) mod[8][MC-8+i]=!!(bits>>(i+7)&1);
+      mod[MC-8][8]=true; // dark module
+    }
+
+    // encode data
+    var bytes=[];
+    for(var i=0;i<data.length;i++){
+      var c=data.charCodeAt(i);
+      if(c>0x7FF){ bytes.push(0xE0|c>>12); bytes.push(0x80|(c>>6&0x3F)); bytes.push(0x80|(c&0x3F)); }
+      else if(c>0x7F){ bytes.push(0xC0|c>>6); bytes.push(0x80|(c&0x3F)); }
+      else bytes.push(c);
+    }
+    var blocks=rsBlocks(typeNum);
+    var total=0; for(var i=0;i<blocks.length;i++) total+=blocks[i].total;
+    var cap=0; for(var i=0;i<blocks.length;i++) cap+=blocks[i].data;
+
+    var buf=new Buf();
+    buf.put(4,4); buf.put(bytes.length,lenBits(typeNum));
+    for(var i=0;i<bytes.length;i++) buf.put(bytes[i],8);
+    if(buf.bits()+4<=cap*8) buf.put(0,4);
+    while(buf.bits()%8!==0) buf.putBit(false);
+    while(true){ if(buf.bits()>=cap*8) break; buf.put(0xEC,8); if(buf.bits()>=cap*8) break; buf.put(0x11,8); }
+
+    // RS interleave
+    var dc=0, dblks=[], eblks=[];
+    for(var i=0;i<blocks.length;i++){
+      var blk=blocks[i], dp=new Array(blk.data);
+      for(var j=0;j<dp.length;j++) dp[j]=buf.buf[dc++];
+      var ep=new Poly(dp,errPoly(blk.total-blk.data).len()-1).mod(errPoly(blk.total-blk.data));
+      dblks.push(dp); eblks.push(ep);
+    }
+    var raw=[];
+    var maxd=0; for(var i=0;i<dblks.length;i++) if(dblks[i].length>maxd) maxd=dblks[i].length;
+    for(var j=0;j<maxd;j++) for(var i=0;i<dblks.length;i++) if(j<dblks[i].length) raw.push(dblks[i][j]);
+    var maxe=0; for(var i=0;i<eblks.length;i++) if(eblks[i].len()>maxe) maxe=eblks[i].len();
+    for(var j=0;j<maxe;j++) for(var i=0;i<eblks.length;i++) if(j<eblks[i].len()) raw.push(eblks[i].get(j));
+
+    // find best mask
+    var bestLoss=Infinity, bestPat=0;
+    for(var pat=0;pat<8;pat++){
+      var m2=[]; for(var i=0;i<MC;i++){m2[i]=[]; for(var j=0;j<MC;j++) m2[i][j]=mod[i][j];}
+      // map data
+      var bit=0,ri=MC-1,ci=-1; var drow=MC-1;
+      for(var col=MC-1;col>0;col-=2){
+        if(col===6) col--;
+        for(var row=0;row<MC;row++){
+          var r=drow===MC-1?row:MC-1-row;
+          for(var cc=0;cc<2;cc++){
+            var c=ci===-1?col:col-1;
+            if(cc===0) c=col; else c=col-1;
+            if(m2[r][c]===null){
+              var dark=false;
+              if(bit<raw.length*8) dark=!!(raw[Math.floor(bit/8)]>>>(7-bit%8)&1);
+              if(mask(pat,r,c)) dark=!dark;
+              m2[r][c]=dark; bit++;
+            }
+          }
+        }
+        drow=drow===MC-1?0:MC-1;
+      }
+      setFmt(pat); // placeholder values
+      // loss
+      var loss=0;
+      for(var r=0;r<MC;r++) for(var c=0;c<MC-4;c++){
+        var s=m2[r][c]?1:0;
+        for(var k=1;k<5;k++) if(!!(m2[r][c+k]?1:0)!==!!s){ s=-1; break; }
+        if(s!==-1) loss+=3;
+      }
+      if(loss<bestLoss){ bestLoss=loss; bestPat=pat; }
+    }
+
+    // final data map
+    var drow2=MC-1;
+    for(var col=MC-1;col>0;col-=2){
+      if(col===6) col--;
+      for(var row=0;row<MC;row++){
+        for(var cc=0;cc<2;cc++){
+          var r2=drow2===MC-1?row:MC-1-row;
+          var c2=cc===0?col:col-1;
+          if(mod[r2][c2]===null) mod[r2][c2]=false; // default
+        }
+      }
+      drow2=drow2===MC-1?0:MC-1;
+    }
+
+    // Redo with best pattern properly
+    var bit2=0, drow3=MC-1;
+    for(var col=MC-1;col>0;col-=2){
+      if(col===6) col--;
+      for(var row=0;row<MC;row++){
+        var r3=drow3===MC-1?row:MC-1-row;
+        for(var cc=0;cc<2;cc++){
+          var c3=cc===0?col:col-1;
+          if(mod[r3][c3]===null || typeof mod[r3][c3]==='undefined'){
+            var dark2=false;
+            if(bit2<raw.length*8) dark2=!!(raw[Math.floor(bit2/8)]>>>(7-bit2%8)&1);
+            if(mask(bestPat,r3,c3)) dark2=!dark2;
+            mod[r3][c3]=dark2; bit2++;
+          } else {
+            // fixed pattern module - apply mask only to non-pattern cells if needed
+          }
+        }
+      }
+      drow3=drow3===MC-1?0:MC-1;
+    }
+    setFmt(bestPat);
+
+    return { size: MC, isDark: function(r,c){ return !!mod[r][c]; } };
+  }
+
+  /* ----- Auto type selection (L level, 8-bit mode) ----- */
+  var CAP_L=[19,34,55,80,108,136,156,194,232,274,324,370,428,461,523,589,647,721,795,861,902,974,1052,1137,1224,1307,1394,1468,1564,1656,1774,1882,2006,2117,2240,2361,2524,2638,2750,2876];
+  function autoType(data){
+    var bytes=unescape(encodeURIComponent(data)).length;
+    for(var i=0;i<CAP_L.length;i++) if(bytes<=CAP_L[i]) return i+1;
+    return 40;
+  }
+
+  return {
+    render: function(data, canvas) {
+      var size = autoType(data);
+      var qr = QR(data, size);
+      var n = qr.size;
+      var ctx = canvas.getContext('2d');
+      var w = canvas.width, h = canvas.height;
+      var cellW = w / n, cellH = h / n;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#000000';
+      for (var r = 0; r < n; r++)
+        for (var c = 0; c < n; c++)
+          if (qr.isDark(r, c))
+            ctx.fillRect(Math.round(c * cellW), Math.round(r * cellH), Math.ceil(cellW), Math.ceil(cellH));
+    }
+  };
+})();
+
+/* ============================================================
+   App Logic
+   ============================================================ */
+var catalog = [];   // [{barcode, name, price}]
+var cart = {};      // { barcode: qty }
+
+/* -- Parse catalog from URL hash: #c=barcode:name:price|... -- */
+function init() {
+  var hash = location.hash || '';
+  var cParam = '';
+  if (hash.indexOf('#c=') === 0) {
+    cParam = decodeURIComponent(hash.slice(3));
+  } else {
+    var m = (location.search + hash).match(/[?&#]c=([^&]+)/);
+    if (m) cParam = decodeURIComponent(m[1]);
+  }
+
+  if (cParam) {
+    catalog = [];
+    cParam.split('|').forEach(function(s) {
+      var p = s.split(':');
+      if (p.length >= 3) {
+        catalog.push({ barcode: p[0], name: p[1], price: parseFloat(p[2]) || 0 });
+      }
+    });
+    try { localStorage.setItem('pb_catalog', JSON.stringify(catalog)); } catch(e){}
+  } else {
+    try { var c = localStorage.getItem('pb_catalog'); if (c) catalog = JSON.parse(c); } catch(e){}
+  }
+
+  renderItems();
+  updateSummary();
+}
+
+function renderItems() {
+  var el = document.getElementById('itemList');
+  if (catalog.length === 0) {
+    el.innerHTML = '<div class="empty">No items in catalog. Please scan the catalog QR provided by the store.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  catalog.forEach(function(item) {
+    var row = document.createElement('div');
+    row.className = 'item-row';
+    var qty = cart[item.barcode] || 0;
+    row.innerHTML =
+      '<div class="item-info">' +
+        '<div class="item-name">' + esc(item.name) + '</div>' +
+        '<div class="item-price">Rs ' + item.price.toFixed(2) + '</div>' +
+      '</div>' +
+      '<div class="qty-wrap">' +
+        '<button class="qty-btn" onclick="chQty(\'' + esc(item.barcode) + '\',-1)">−</button>' +
+        '<div class="qty-num" id="q_' + esc(item.barcode) + '">' + qty + '</div>' +
+        '<button class="qty-btn" onclick="chQty(\'' + esc(item.barcode) + '\',1)">+</button>' +
+      '</div>';
+    el.appendChild(row);
+  });
+}
+
+function esc(s) { return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+function chQty(barcode, delta) {
+  var q = (cart[barcode] || 0) + delta;
+  if (q <= 0) delete cart[barcode]; else cart[barcode] = q;
+  var el = document.getElementById('q_' + barcode);
+  if (el) el.textContent = cart[barcode] || 0;
+  updateSummary();
+}
+
+function updateSummary() {
+  var qty = 0, total = 0;
+  catalog.forEach(function(item) {
+    var q = cart[item.barcode] || 0;
+    qty += q; total += q * item.price;
+  });
+  document.getElementById('sumQty').textContent = qty;
+  document.getElementById('sumTotal').textContent = 'Rs ' + total.toFixed(2);
+}
+
+function addCustomItem() {
+  var name = (prompt('Custom Item Name:') || '').trim();
+  if (!name) return;
+  var price = parseFloat(prompt('Price (Rs):', '0') || '0') || 0;
+  var qty = parseInt(prompt('Quantity:', '1') || '1') || 1;
+  var cleanName = name.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+  var barcode = 'C_' + cleanName.replace(/\s+/g, '_') + '_' + price;
+  if (!catalog.some(function(i){ return i.barcode===barcode; })) {
+    catalog.push({ barcode: barcode, name: cleanName + ' (Custom)', price: price });
+  }
+  cart[barcode] = (cart[barcode] || 0) + qty;
+  renderItems();
+  updateSummary();
+}
+
+function generateOrder() {
+  var name = document.getElementById('custName').value.trim();
+  var phone = document.getElementById('custPhone').value.trim();
+  if (!name) { alert('Please enter your name.'); return; }
+  if (!phone || phone.length !== 10 || isNaN(phone)) { alert('Please enter a valid 10-digit phone number.'); return; }
+  var barcodes = Object.keys(cart);
+  if (barcodes.length === 0) { alert('Please select at least one item.'); return; }
+
+  // Build payload: PB:Name:Phone:bc*qty,...
+  var items = barcodes.map(function(bc){ return bc + '*' + cart[bc]; }).join(',');
+  var payload = 'PB:' + name + ':' + phone + ':' + items;
+
+  // Receipt
+  document.getElementById('rcptMeta').textContent = 'Name: ' + name + ' | Phone: ' + phone;
+  var rcptEl = document.getElementById('rcptItems');
+  rcptEl.innerHTML = '';
+  var grand = 0;
+  barcodes.forEach(function(bc) {
+    var item = catalog.find(function(i){ return i.barcode===bc; });
+    var qty = cart[bc];
+    var price = item ? item.price : 0;
+    var tot = qty * price;
+    grand += tot;
+    var row = document.createElement('div');
+    row.className = 'receipt-item-row';
+    row.innerHTML = '<span>' + esc(item ? item.name : 'Item') + ' &times;' + qty + '</span><span>Rs ' + tot.toFixed(2) + '</span>';
+    rcptEl.appendChild(row);
+  });
+  document.getElementById('rcptTotal').textContent = 'Rs ' + grand.toFixed(2);
+
+  // Show modal
+  document.getElementById('modal').classList.add('open');
+
+  // Draw QR
+  try {
+    var canvas = document.getElementById('qr-canvas');
+    QRGen.render(payload, canvas);
+  } catch(e) {
+    console.error('QR render error:', e);
+    document.getElementById('qr-canvas').getContext('2d').fillText('QR Error', 10, 120);
+  }
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
