@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Pre-Booking Order</title>
@@ -218,9 +216,7 @@
   <!-- Items -->
   <div class="card">
     <div class="section-label">Select Items</div>
-    <div class="item-list" id="itemList">
-      <div class="empty">Loading catalog…</div>
-    </div>
+    <div class="item-list" id="itemList"><div class="empty">No items in catalog. Please scan the catalog QR provided by the store.</div></div>
     <button class="add-custom" onclick="addCustomItem()">+ Add Custom Item (No Stock Impact)</button>
   </div>
 
@@ -657,12 +653,10 @@ function generateOrder() {
   // Show modal
   document.getElementById('modal').classList.add('open');
 
-  // Automatically submit order to desktop app in background (No scanning needed!)
+  // Automatically submit order to desktop app in background via PubNub & local API (No scanning needed!)
   try {
-    fetch('https://ntfy.sh/pipodara_prebook_store', {
-      method: 'POST',
-      body: payload
-    }).catch(function(){});
+    var pubUrl = 'https://ps.pubnub.com/publish/demo/demo/0/pipodara_prebook_channel/0/' + encodeURIComponent(JSON.stringify(payload));
+    fetch(pubUrl).catch(function(){});
   } catch(e) {}
 
   try {
@@ -689,5 +683,6 @@ function closeModal() {
 
 window.onload = init;
 </script>
-</body>
-</html>
+
+
+</body></html>
