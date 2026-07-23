@@ -217,7 +217,7 @@
   <div class="card">
     <div class="section-label">Select Items</div>
     <div class="item-list" id="itemList"><div class="empty">No items in catalog. Please scan the catalog QR provided by the store.</div></div>
-    <button class="add-custom" onclick="addCustomItem()">+ Add Custom Item (No Stock Impact)</button>
+
   </div>
 
   <!-- Summary -->
@@ -233,7 +233,7 @@
     </div>
   </div>
 
-  <button class="submit-btn" onclick="generateOrder()">GENERATE ORDER QR CODE</button>
+  <button class="submit-btn" onclick="generateOrder()">SUBMIT PRE-BOOK</button>
 
 </div>
 
@@ -530,9 +530,11 @@ var QRGen = (function () {
    ============================================================ */
 var catalog = [];   // [{barcode, name, price}]
 var cart = {};      // { barcode: qty }
-
+var currentBookingId = '';
+ 
 /* -- Parse catalog from URL hash: #c=barcode:name:price|... -- */
 function init() {
+  currentBookingId = 'PB_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
   var hash = location.hash || '';
   var cParam = '';
   if (hash.indexOf('#c=') === 0) {
@@ -557,7 +559,56 @@ function init() {
 
   renderItems();
   updateSummary();
+
+  // Fetch dynamic/live updates from cloud PubNub channel
+  fetchCloudCatalog();
+  setInterval(fetchCloudCatalog, 4000);
 }
+
+function fetchCloudCatalog() {
+  var url = 'https://ps.pubnub.com/v2/history/sub-key/demo/channel/pipodara_prebook_catalog_channel?count=1';
+  fetch(url)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data && data[0] && data[0].length > 0) {
+        var catalogStr = data[0][0];
+        if (catalogStr && typeof catalogStr === 'string') {
+          var newCatalog = [];
+          catalogStr.split('|').forEach(function(s) {
+            var p = s.split(':');
+            if (p.length >= 3) {
+              newCatalog.push({ barcode: p[0], name: p[1], price: parseFloat(p[2]) || 0 });
+            }
+          });
+          if (newCatalog.length > 0) {
+            // Keep manually added custom items
+            var customItems = catalog.filter(function(item) {
+              return item.barcode && item.barcode.indexOf('C_') === 0;
+            });
+            catalog = newCatalog.concat(customItems);
+            try { localStorage.setItem('pb_catalog', JSON.stringify(catalog)); } catch(e){}
+
+            // Cleanup cart from deleted non-custom items
+            var validBarcodes = {};
+            catalog.forEach(function(item) {
+              validBarcodes[item.barcode] = true;
+            });
+            Object.keys(cart).forEach(function(bc) {
+              if (!validBarcodes[bc]) {
+                delete cart[bc];
+              }
+            });
+
+            renderItems();
+            updateSummary();
+          }
+        }
+      }
+    })
+    .catch(function(err) { console.error('Error fetching cloud catalog:', err); });
+}
+
+
 
 function renderItems() {
   var el = document.getElementById('itemList');
@@ -627,9 +678,9 @@ function generateOrder() {
   var barcodes = Object.keys(cart);
   if (barcodes.length === 0) { alert('Please select at least one item.'); return; }
 
-  // Build payload: PB:Name:Phone:bc*qty,...
+  // Build payload: PB:Name:Phone:bc*qty,...:bookingId
   var items = barcodes.map(function(bc){ return bc + '*' + cart[bc]; }).join(',');
-  var payload = 'PB:' + name + ':' + phone + ':' + items;
+  var payload = 'PB:' + name + ':' + phone + ':' + items + ':' + currentBookingId;
 
   // Receipt
   document.getElementById('rcptMeta').textContent = 'Name: ' + name + ' | Phone: ' + phone;
