@@ -72,6 +72,7 @@
     }
     .item-row:last-child { border-bottom: none; }
     .item-info { flex: 1; }
+    .item-info { flex: 1; }
     .item-name { font-size: 13px; font-weight: 600; }
     .item-price { font-size: 11px; color: var(--gold); margin-top: 2px; }
     .qty-wrap {
@@ -216,7 +217,7 @@
   <!-- Items -->
   <div class="card">
     <div class="section-label">Select Items</div>
-    <div class="item-list" id="itemList"><div class="empty">No items in catalog. Please scan the catalog QR provided by the store.</div></div>
+    <div class="item-list" id="itemList"><div class="item-row"><div class="item-info"><div class="item-name">kaju</div><div class="item-price">Rs 1000.00</div></div><div class="qty-wrap"><button class="qty-btn" onclick="chQty('PB_ITEM_kaju_100',-1)">−</button><div class="qty-num" id="q_PB_ITEM_kaju_100">0</div><button class="qty-btn" onclick="chQty('PB_ITEM_kaju_100',1)">+</button></div></div><div class="item-row"><div class="item-info"><div class="item-name">kaju245</div><div class="item-price">Rs 87.00</div></div><div class="qty-wrap"><button class="qty-btn" onclick="chQty('PB_ITEM_kaju245_879',-1)">−</button><div class="qty-num" id="q_PB_ITEM_kaju245_879">0</div><button class="qty-btn" onclick="chQty('PB_ITEM_kaju245_879',1)">+</button></div></div><div class="item-row"><div class="item-info"><div class="item-name">kajuttdg</div><div class="item-price">Rs 98766.00</div></div><div class="qty-wrap"><button class="qty-btn" onclick="chQty('PB_ITEM_kajuttdg_98766',-1)">−</button><div class="qty-num" id="q_PB_ITEM_kajuttdg_98766">0</div><button class="qty-btn" onclick="chQty('PB_ITEM_kajuttdg_98766',1)">+</button></div></div></div>
 
   </div>
 
@@ -531,9 +532,12 @@ var QRGen = (function () {
 var catalog = [];   // [{barcode, name, price}]
 var cart = {};      // { barcode: qty }
 var currentBookingId = '';
- 
+var channelSuffix = '';
+var catalogIntervalId = null;
+
 /* -- Parse catalog from URL hash: #c=barcode:name:price|... -- */
 function init() {
+  cart = {}; // Clear cart when initializing or switching profiles
   currentBookingId = 'PB_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
   var hash = location.hash || '';
   var cParam = '';
@@ -544,6 +548,14 @@ function init() {
     if (m) cParam = decodeURIComponent(m[1]);
   }
 
+  // Parse channelSuffix (profileId)
+  var mCh = (location.search + hash).match(/[?&#]ch=([^&]+)/);
+  if (mCh) {
+    channelSuffix = decodeURIComponent(mCh[1]);
+  } else {
+    channelSuffix = '';
+  }
+
   if (cParam) {
     catalog = [];
     cParam.split('|').forEach(function(s) {
@@ -552,21 +564,29 @@ function init() {
         catalog.push({ barcode: p[0], name: p[1], price: parseFloat(p[2]) || 0 });
       }
     });
-    try { localStorage.setItem('pb_catalog', JSON.stringify(catalog)); } catch(e){}
+    try { localStorage.setItem('pb_catalog_' + channelSuffix, JSON.stringify(catalog)); } catch(e){}
   } else {
-    try { var c = localStorage.getItem('pb_catalog'); if (c) catalog = JSON.parse(c); } catch(e){}
+    catalog = [];
+    try { var c = localStorage.getItem('pb_catalog_' + channelSuffix); if (c) catalog = JSON.parse(c); } catch(e){}
   }
 
   renderItems();
   updateSummary();
 
   // Fetch dynamic/live updates from cloud PubNub channel
+  if (catalogIntervalId) {
+    clearInterval(catalogIntervalId);
+  }
   fetchCloudCatalog();
-  setInterval(fetchCloudCatalog, 4000);
+  catalogIntervalId = setInterval(fetchCloudCatalog, 4000);
 }
 
 function fetchCloudCatalog() {
-  var url = 'https://ps.pubnub.com/v2/history/sub-key/demo/channel/pipodara_prebook_catalog_channel?count=1';
+  var catChannel = 'pipodara_prebook_catalog_channel';
+  if (channelSuffix) {
+    catChannel += '_' + channelSuffix;
+  }
+  var url = 'https://ps.pubnub.com/v2/history/sub-key/demo/channel/' + catChannel + '?count=1';
   fetch(url)
     .then(function(res) { return res.json(); })
     .then(function(data) {
@@ -586,7 +606,7 @@ function fetchCloudCatalog() {
               return item.barcode && item.barcode.indexOf('C_') === 0;
             });
             catalog = newCatalog.concat(customItems);
-            try { localStorage.setItem('pb_catalog', JSON.stringify(catalog)); } catch(e){}
+            try { localStorage.setItem('pb_catalog_' + channelSuffix, JSON.stringify(catalog)); } catch(e){}
 
             // Cleanup cart from deleted non-custom items
             var validBarcodes = {};
@@ -678,6 +698,28 @@ function generateOrder() {
   var barcodes = Object.keys(cart);
   if (barcodes.length === 0) { alert('Please select at least one item.'); return; }
 
+  // Generate short code (e.g. RAM1, TES2)
+  var cleanName = name.replace(/[^a-zA-Z]/g, '').toUpperCase();
+  var prefix = cleanName.slice(0, 3);
+  if (prefix.length < 3) {
+    prefix = (prefix + 'PBX').slice(0, 3);
+  }
+
+  var count = 1;
+  try {
+    var countKey = 'pb_count_' + channelSuffix;
+    var storedCount = localStorage.getItem(countKey);
+    if (storedCount) {
+      count = parseInt(storedCount) + 1;
+    }
+    localStorage.setItem(countKey, count);
+  } catch(e) {}
+
+  var shortCode = prefix + count;
+
+  // Format booking ID as PB_SHORTCODE_TIMESTAMP_RANDOM for easy parsing
+  currentBookingId = 'PB_' + shortCode + '_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
+
   // Build payload: PB:Name:Phone:bc*qty,...:bookingId
   var items = barcodes.map(function(bc){ return bc + '*' + cart[bc]; }).join(',');
   var payload = 'PB:' + name + ':' + phone + ':' + items + ':' + currentBookingId;
@@ -699,14 +741,18 @@ function generateOrder() {
     rcptEl.appendChild(row);
   });
   document.getElementById('rcptTotal').textContent = 'Rs ' + grand.toFixed(2);
-  document.getElementById('bookingCodeText').textContent = payload;
+  document.getElementById('bookingCodeText').textContent = shortCode;
 
   // Show modal
   document.getElementById('modal').classList.add('open');
 
-  // Automatically submit order to desktop app in background via PubNub & local API (No scanning needed!)
+  // Automatically submit order to desktop app in background via PubNub & local API
+  var pubChannel = 'pipodara_prebook_channel';
+  if (channelSuffix) {
+    pubChannel += '_' + channelSuffix;
+  }
   try {
-    var pubUrl = 'https://ps.pubnub.com/publish/demo/demo/0/pipodara_prebook_channel/0/' + encodeURIComponent(JSON.stringify(payload));
+    var pubUrl = 'https://ps.pubnub.com/publish/demo/demo/0/' + pubChannel + '/0/' + encodeURIComponent(JSON.stringify(payload));
     fetch(pubUrl).catch(function(){});
   } catch(e) {}
 
@@ -733,6 +779,7 @@ function closeModal() {
 }
 
 window.onload = init;
+window.onhashchange = init;
 </script>
 
 
