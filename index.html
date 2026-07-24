@@ -891,12 +891,18 @@
         rcptEl.appendChild(row);
       });
       document.getElementById('rcptTotal').textContent = 'Rs ' + grand.toFixed(2);
-      
-      // Short code shown to customer: name + first 4 digits of phone
-      var cleanNameForCode = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-      var shortPhone = phone.substring(0, 4);
-      var shortCode = cleanNameForCode + shortPhone;
-      document.getElementById('bookingCodeText').textContent = shortCode;
+      var shortCode = '';
+      if (pid && fy) {
+        var cleanPid = pid.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 2);
+        var cleanFyDigits = fy.replace(/[^0-9]/g, '');
+        var shortFy = cleanFyDigits.length >= 4 ? cleanFyDigits.slice(-4) : cleanFyDigits;
+        var cleanCustName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        var lastThreePhone = phone.slice(-3);
+        shortCode = cleanPid + shortFy + cleanCustName + lastThreePhone;
+      } else {
+        shortCode = name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 4) + phone.slice(-3);
+      }
+      document.getElementById('bookingCodeText').textContent = shortCode.toUpperCase();
 
       // Show modal
       document.getElementById('modal').classList.add('open');
