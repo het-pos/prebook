@@ -709,7 +709,7 @@
 
     /* -- Parse catalog from URL hash: #c=barcode:name:price|... -- */
     function init() {
-      currentBookingId = 'PB_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
+      currentBookingId = Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
       
       // Parse query parameters
       var query = location.search || '';
@@ -852,7 +852,8 @@
       var price = parseFloat(prompt('Price (Rs):', '0') || '0') || 0;
       var qty = parseInt(prompt('Quantity:', '1') || '1') || 1;
       var cleanName = name.replace(/[^a-zA-Z0-9 ]/g, '').trim();
-      var barcode = 'C_' + cleanName.replace(/\s+/g, '_') + '_' + price;
+      var shortName = cleanName.replace(/\s+/g, '').substring(0, 8);
+      var barcode = 'C_' + shortName + '_' + price;
       if (!catalog.some(function (i) { return i.barcode === barcode; })) {
         catalog.push({ barcode: barcode, name: cleanName + ' (Custom)', price: price });
       }
