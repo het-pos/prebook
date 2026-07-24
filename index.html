@@ -891,7 +891,7 @@
         rcptEl.appendChild(row);
       });
       document.getElementById('rcptTotal').textContent = 'Rs ' + grand.toFixed(2);
-      document.getElementById('bookingCodeText').textContent = payload;
+      document.getElementById('bookingCodeText').textContent = currentBookingId;
 
       // Show modal
       document.getElementById('modal').classList.add('open');
