@@ -891,7 +891,12 @@
         rcptEl.appendChild(row);
       });
       document.getElementById('rcptTotal').textContent = 'Rs ' + grand.toFixed(2);
-      document.getElementById('bookingCodeText').textContent = currentBookingId;
+      
+      // Short code shown to customer: name + first 4 digits of phone
+      var cleanNameForCode = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      var shortPhone = phone.substring(0, 4);
+      var shortCode = cleanNameForCode + shortPhone;
+      document.getElementById('bookingCodeText').textContent = shortCode;
 
       // Show modal
       document.getElementById('modal').classList.add('open');
