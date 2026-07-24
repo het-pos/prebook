@@ -939,6 +939,7 @@
 
     function closeModal() {
       document.getElementById('modal').classList.remove('open');
+      currentBookingId = Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
     }
 
     window.onload = init;
